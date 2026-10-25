@@ -7,6 +7,11 @@
 #include "ImGui/ImGuiManager.h"
 #include "GS/GS.h"
 #include "ps4/core/WorkerProfilePS4.h"
+#if defined(PCSX2_PS4_VM_BOOT)
+#include "common/Timer.h"
+#include "ps4/core/EEEventProfilePS4.h"
+#include "ps4/core/GSProfilePS4.h"
+#endif
 #include "GS/GSCapture.h"
 #if !defined(PCSX2_PS4)
 #include "GSDeviceOrbis.h"
@@ -523,6 +528,31 @@ void GSvsync(u32 field, bool registers_written)
 	// get cleared in HW VSync, and may be needed for a buffered draw (FFX FMVs).
 	g_gs_renderer->Flush(GSState::VSYNC);
 	g_gs_renderer->VSync(field, registers_written, g_gs_renderer->IsIdleFrame());
+
+#if defined(PCSX2_PS4_VM_BOOT)
+	// Emit deep diagnostic intervals from the GS consumer thread. The EE and
+	// worker profilers explicitly designate this as their read/reset owner.
+	// Keep the heartbeat coarse so profiling does not add per-frame overhead.
+	{
+		static Common::Timer::Value last_profile_tick = 0;
+		const Common::Timer::Value now = Common::Timer::GetCurrentValue();
+		if (last_profile_tick == 0)
+		{
+			last_profile_tick = now;
+		}
+		else
+		{
+			const double interval = Common::Timer::ConvertValueToMilliseconds(now - last_profile_tick) / 1000.0;
+			if (interval >= 5.0)
+			{
+				last_profile_tick = now;
+				PS4EEEventProfile::LogInterval(interval);
+				PS4WorkerProfile::LogInterval(interval);
+				PS4GSProfile::LogInterval(interval);
+			}
+		}
+	}
+#endif
 }
 
 int GSfreeze(FreezeAction mode, freezeData* data)

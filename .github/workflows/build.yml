@@ -114,7 +114,12 @@ jobs:
           name: ps4-executable-${{ github.run_id }}
           path: ps4/vm/build
 
-      - uses: actions/setup-dotnet@v5
+      # Pinned to v3 (pre-v4): v4+ unconditionally pre-installs the latest LTS
+      # runtime (currently .NET 10) before the requested 8.0.x SDK, and as of
+      # 2026-10 that extra, unrequested download 409s from
+      # dotnetorigin.blob.core.windows.net (fresh LTS patch not yet replicated).
+      # v3 only fetches the SDK we actually ask for.
+      - uses: actions/setup-dotnet@v3.4.2
         with:
           dotnet-version: '8.0.x'
 

@@ -164,6 +164,10 @@ struct cdvdStruct
 
 extern cdvdStruct cdvd;
 
+// PS2 BIOS language override (0 Japanese, 1 English, 2 French, 3 Spanish, 4 German, 5 Italian,
+// 6 Dutch, 7 Portuguese); -1 leaves the NVM's own value untouched. See CDVD.cpp.
+extern int g_orbis_ps2_language;
+
 extern void cdvdReadLanguageParams(u8* config);
 
 extern void cdvdLoadNVRAM();

@@ -49,6 +49,7 @@
 #include <orbis/libkernel.h>
 #include <string>
 #include <string_view>
+#include <cstdint>
 #include <cstdio>
 #include <cerrno>
 #include <fcntl.h>
@@ -588,6 +589,44 @@ static void PrepareEmulatorFolders(SettingsInterface& settings)
 	}
 }
 
+// (AI-assisted) Mirrors the PS2 BIOS language selector (0 Japanese, 1 English, 2 French,
+// 3 Spanish, 4 German, 5 Italian, 6 Dutch, 7 Portuguese) from ORBIS_SYSTEM_SERVICE_PARAM_ID_LANG
+// (Sony's SCE_SYSTEM_PARAM_LANG_* ids), so a plain ISO boot follows the PS4's system language the
+// same way a prebuilt PKG does with its baked-in --ps2-lang=system. -1 (unmapped/unavailable)
+// leaves the NVM's own language untouched, matching previous behaviour.
+static int MapOrbisSystemLanguageToPS2()
+{
+	if (access("/data/PS4SX2/vm-no-system-language", F_OK) == 0)
+	{
+		ProbeLog("PS2 BIOS language: following NVM default (disabled by /data/PS4SX2/vm-no-system-language)\n");
+		return -1;
+	}
+	int32_t orbis_lang = -1;
+	if (sceSystemServiceParamGetInt(ORBIS_SYSTEM_SERVICE_PARAM_ID_LANG, &orbis_lang) < 0)
+	{
+		ProbeLog("PS2 BIOS language: sceSystemServiceParamGetInt failed, following NVM default\n");
+		return -1;
+	}
+	int ps2_lang;
+	switch (orbis_lang)
+	{
+		case 0: ps2_lang = 0; break;  // Japanese
+		case 1: case 18: ps2_lang = 1; break;  // English (US/GB)
+		case 2: case 22: ps2_lang = 2; break;  // French (France/Canada)
+		case 3: case 20: ps2_lang = 3; break;  // Spanish (Spain/Latin America)
+		case 4: ps2_lang = 4; break;  // German
+		case 5: ps2_lang = 5; break;  // Italian
+		case 6: ps2_lang = 6; break;  // Dutch
+		case 7: case 17: ps2_lang = 7; break;  // Portuguese (Portugal/Brazil)
+		default:
+			ProbeLog("PS2 BIOS language: PS4 system language %d has no PS2 BIOS equivalent, following NVM default\n",
+				orbis_lang);
+			return -1;
+	}
+	ProbeLog("PS2 BIOS language: %d (from PS4 system language %d)\n", ps2_lang, orbis_lang);
+	return ps2_lang;
+}
+
 static void* RunVM(void*)
 {
 	PS4ThreadAffinity::PinCurrentThread("EE", 2);
@@ -753,6 +792,7 @@ static void* RunVM(void*)
 	g_ps4_ipu0_burst = access("/data/PS4SX2/vm-no-ipu-burst", F_OK) != 0;
 	ProbeLog("IPU output burst: %s (up to 32 FIFO fills per DMA event, cycles preserved; disable with /data/PS4SX2/vm-no-ipu-burst)\n",
 		g_ps4_ipu0_burst ? "enabled" : "disabled by marker");
+	g_orbis_ps2_language = MapOrbisSystemLanguageToPS2();
 #if defined(PCSX2_PS4_VM_BOOT_JIT)
 	g_ps4_vtlb_register_cache = access("/data/PS4SX2/vm-no-vtlb-register-cache", F_OK) != 0;
 	ProbeLog("VTLB scalar read register cache: %s (device handlers retained; Fastmem unchanged)\n",

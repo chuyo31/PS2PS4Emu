@@ -19,6 +19,7 @@ PS4SX2 brings the PCSX2 emulation core to PS4 with a controller-friendly game li
 - In-game internal resolution, aspect ratio and performance overlay settings.
 - Memory cards, shader caching, session logs and release notifications.
 - Live PC telemetry with a browser dashboard and FTP tools.
+- PS2 BIOS language follows the PS4 system language on ISO/BIN/CHD boot (multi-language PAL titles use it automatically); disable with `/data/PS4SX2/vm-no-system-language` to keep the NVM's own saved language instead.
 
 The application interface is in English. BIOS files, games and user saves are not included. Physical CD media and disc swapping are not currently supported. Save states and complete desktop PCSX2 feature parity are not available.
 
@@ -131,6 +132,8 @@ The workflow at [`.github/workflows/build.yml`](.github/workflows/build.yml) bui
 1. **Ubuntu 24.04:** installs Clang/LLVM 21 from [LLVM's package repository](https://apt.llvm.org/), restores the PS4 SDK snapshot and compiles the current source with JIT, Fastmem and MTVU enabled.
 2. **Windows Server 2022:** downloads that executable, packages it with the existing PowerShell script and runs the package validator.
 3. The run publishes **PS4SX2-PKG**, executable/debug symbols and build logs as [Actions artifacts](https://github.com/actions/upload-artifact). It does not publish a release automatically.
+
+**Packaging pins `actions/setup-dotnet@v3.4.2`.** Newer major versions (v4+) always pre-install the latest .NET LTS runtime before the requested 8.0.x SDK, and that extra download has started failing with HTTP 409 from `dotnetorigin.blob.core.windows.net` for freshly published LTS patches. v3 only fetches the SDK the packaging step actually needs.
 
 **The published SDK is configured by default.** The workflow downloads [PS4SX2 SDK v2](https://github.com/Phoenixx1202/PS4SX2-SDK/releases/tag/sdk-v2) and verifies its pinned SHA-256 checksum. No repository variables are required for this snapshot. Application builds run entirely on GitHub; your PC can be switched off. The PS4 Mesa/RADV, libc++ ABI overlay and OpenOrbis dependencies are prebuilt SDK inputs, not rebuilt from upstream in this workflow. A stock desktop SDK cannot replace them.
 
